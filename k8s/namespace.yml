@@ -1,0 +1,13 @@
+# This code is proprietary to AquaTrak. Unauthorized use is strictly prohibited.
+
+# =============================================================================
+# KUBERNETES NAMESPACE FOR AQUATRAK PLATFORM
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aquatrak
+  labels:
+    name: aquatrak
+    environment: production 

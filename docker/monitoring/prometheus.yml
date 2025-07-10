@@ -1,0 +1,85 @@
+# This code is proprietary to AquaTrak. Unauthorized use is strictly prohibited.
+
+# =============================================================================
+# PROMETHEUS CONFIGURATION FOR AQUATRAK MONITORING
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'aquatrak'
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # AquaTrak API
+  - job_name: 'aquatrak-api'
+    static_configs:
+      - targets: ['aquatrak-api:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Nginx
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    metrics_path: '/nginx_status'
+    scrape_interval: 30s
+
+  # Node Exporter (if available)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # Docker containers
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker:9323']
+    scrape_interval: 30s
+
+  # Celery workers
+  - job_name: 'celery'
+    static_configs:
+      - targets: ['celery-worker:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Health checks
+  - job_name: 'health-checks'
+    static_configs:
+      - targets: 
+        - 'aquatrak-api:8000'
+        - 'postgres:5432'
+        - 'redis:6379'
+        - 'nginx:80'
+    metrics_path: '/health'
+    scrape_interval: 60s 

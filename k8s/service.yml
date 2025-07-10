@@ -1,0 +1,85 @@
+# This code is proprietary to AquaTrak. Unauthorized use is strictly prohibited.
+
+# =============================================================================
+# KUBERNETES SERVICES FOR AQUATRAK PLATFORM
+# =============================================================================
+
+---
+# AquaTrak API Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: aquatrak-api
+  namespace: aquatrak
+  labels:
+    app: aquatrak-api
+spec:
+  selector:
+    app: aquatrak-api
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: aquatrak-postgres
+  namespace: aquatrak
+  labels:
+    app: aquatrak-postgres
+spec:
+  selector:
+    app: aquatrak-postgres
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: aquatrak-redis
+  namespace: aquatrak
+  labels:
+    app: aquatrak-redis
+spec:
+  selector:
+    app: aquatrak-redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  type: ClusterIP
+
+---
+# Nginx Ingress Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: aquatrak-nginx
+  namespace: aquatrak
+  labels:
+    app: aquatrak-nginx
+spec:
+  selector:
+    app: aquatrak-nginx
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 443
+    protocol: TCP
+  type: LoadBalancer 

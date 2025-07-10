@@ -1,0 +1,98 @@
+# This code is proprietary to AquaTrak. Unauthorized use is strictly prohibited.
+
+# =============================================================================
+# KUBERNETES DEPLOYMENT FOR AQUATRAK API
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aquatrak-api
+  namespace: aquatrak
+  labels:
+    app: aquatrak-api
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aquatrak-api
+  template:
+    metadata:
+      labels:
+        app: aquatrak-api
+        version: v1
+    spec:
+      containers:
+      - name: aquatrak-api
+        image: ghcr.io/aquatrak/aquatrak:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: aquatrak-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: aquatrak-secrets
+              key: REDIS_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aquatrak-secrets
+              key: SECRET_KEY
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: aquatrak-config
+              key: DEBUG
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: aquatrak-config
+              key: LOG_LEVEL
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: aquatrak-config
+              key: ENVIRONMENT
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: uploads
+          mountPath: /app/uploads
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: aquatrak-uploads-pvc
+      - name: logs
+        emptyDir: {}
+      imagePullSecrets:
+      - name: ghcr-secret 

@@ -1,0 +1,37 @@
+# This code is proprietary to AquaTrak. Unauthorized use is strictly prohibited.
+
+# =============================================================================
+# KUBERNETES CONFIGMAP FOR AQUATRAK CONFIGURATION
+# =============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aquatrak-config
+  namespace: aquatrak
+data:
+  # Application Configuration
+  DEBUG: "false"
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "production"
+  
+  # Database Configuration
+  POSTGRES_DB: "aquatrak"
+  POSTGRES_USER: "aquatrak"
+  
+  # Redis Configuration
+  REDIS_HOST: "aquatrak-redis"
+  REDIS_PORT: "6379"
+  
+  # API Configuration
+  ALLOWED_HOSTS: "*.aquatrak.com,aquatrak.com"
+  CORS_ORIGINS: "https://aquatrak.com,https://www.aquatrak.com"
+  
+  # Monitoring Configuration
+  PROMETHEUS_ENABLED: "true"
+  GRAFANA_ADMIN_PASSWORD: "admin"
+  
+  # Nginx Configuration
+  nginx.conf: |
+    # Nginx configuration will be mounted here
+    # This is a placeholder for the actual nginx.conf content 

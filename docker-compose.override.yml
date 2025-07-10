@@ -1,0 +1,110 @@
+# This code is proprietary to AquaTrak. Unauthorized use is strictly prohibited.
+
+# =============================================================================
+# DOCKER-COMPOSE OVERRIDE FOR DEVELOPMENT/TESTING
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # Development overrides for AquaTrak API
+  aquatrak-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+    volumes:
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    command: python src/main.py --reload
+
+  # Development overrides for PostgreSQL
+  postgres:
+    environment:
+      - POSTGRES_PASSWORD=dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./scripts/complete-db-schema.sql:/docker-entrypoint-initdb.d/complete-db-schema.sql
+
+  # Development overrides for Redis
+  redis:
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+
+  # Development overrides for Celery Worker
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+    volumes:
+      - ./src:/app/src
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    command: celery -A src.common_utils.celery_app worker --loglevel=debug --concurrency=2
+
+  # Development overrides for Celery Beat
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+    volumes:
+      - ./src:/app/src
+      - ./logs:/app/logs
+    command: celery -A src.common_utils.celery_app beat --loglevel=debug
+
+  # Development overrides for Nginx (optional for development)
+  nginx:
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.dev.conf:/etc/nginx/nginx.conf
+
+  # Development overrides for Prometheus
+  prometheus:
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/monitoring/prometheus.dev.yml:/etc/prometheus/prometheus.yml
+
+  # Development overrides for Grafana
+  grafana:
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=true
+
+  # Development overrides for Elasticsearch
+  elasticsearch:
+    ports:
+      - "9200:9200"
+    environment:
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+
+  # Development overrides for Kibana
+  kibana:
+    ports:
+      - "5601:5601"
+
+  # Development overrides for Filebeat
+  filebeat:
+    volumes:
+      - ./docker/monitoring/filebeat.dev.yml:/usr/share/filebeat/filebeat.yml:ro 
