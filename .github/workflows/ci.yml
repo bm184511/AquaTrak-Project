@@ -44,7 +44,7 @@ jobs:
       with:
         python-version: '3.11'
     
-    - name: Cache pip dependencies
+    - name: Cache Python dependencies
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
@@ -84,6 +84,14 @@ jobs:
       with:
         python-version: '3.11'
     
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -95,12 +103,41 @@ jobs:
         python fix_encoding.py
         echo "✅ Encoding fix completed"
     
-    - name: Run linting
+    - name: Inspect Problematic File
       run: |
-        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+        echo "🔍 Inspecting Black installation for BOM issues..."
+        hexdump -C /opt/hostedtoolcache/Python/3.11.1/x64/lib/python3.11/site-packages/black/__init__.py | head -n 10
+        file /opt/hostedtoolcache/Python/3.11.1/x64/lib/python3.11/site-packages/black/__init__.py
+        python -c "import black; print(black.__file__)"
+    
+    - name: Force Reinstall Black without BOM
+      run: |
+        echo "🔄 Force reinstalling Black without BOM..."
+        pip uninstall -y black
+        pip install --no-cache-dir --compile --global-option="--compile-bytecode" black
+        find $(python -c "import site; print(site.getsitepackages()[0])") -name 'black*.py' -exec file {} \;
+        echo "✅ Black reinstalled"
+    
+    - name: Run Flake8 with Forced UTF-8
+      env:
+        PYTHONIOENCODING: "utf-8"
+        LANG: "C.UTF-8"
+      run: |
+        echo "🔍 Running Flake8 with forced UTF-8 encoding..."
+        flake8 . --config=setup.cfg
+        echo "✅ Flake8 completed"
+    
+    - name: Run Black check
+      run: |
+        echo "🔍 Running Black format check..."
         black --check src/
+        echo "✅ Black check completed"
+    
+    - name: Run MyPy
+      run: |
+        echo "🔍 Running MyPy type checking..."
         mypy src/
+        echo "✅ MyPy completed"
 
   security:
     runs-on: ubuntu-latest
@@ -119,6 +156,14 @@ jobs:
         node-version: '18'
         cache: 'npm'
         cache-dependency-path: src/frontend/package-lock.json
+    
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
     
     - name: Install Python dependencies
       run: |
@@ -143,6 +188,11 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
         args: --severity-threshold=high
+    
+    - name: Security Scan
+      working-directory: ./src/frontend
+      run: |
+        snyk test --file=package.json --detection-depth=5
     
     - name: Run Node.js security scan
       uses: snyk/actions/node@master
