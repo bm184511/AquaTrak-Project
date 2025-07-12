@@ -13,9 +13,20 @@ from typing import Dict, Any, Optional, Tuple
 import uuid
 from datetime import datetime
 
-import rasterio
-from rasterio.transform import from_bounds
-import numpy as np
+# Optional imports for GIS functionality
+try:
+    import rasterio
+    from rasterio.transform import from_bounds
+    RASTERIO_AVAILABLE = True
+except ImportError:
+    RASTERIO_AVAILABLE = False
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
 from fastapi import UploadFile
 
 from .exceptions import FileError
@@ -41,11 +52,12 @@ def load_json(filepath: Path) -> Dict[str, Any]:
     except Exception as e:
         raise FileError(f"Failed to load JSON file {filepath}: {str(e)}")
 
-def save_geotiff(data: np.ndarray, filepath: Path, metadata: Dict) -> None:
+def save_geotiff(data, filepath: Path, metadata: Dict) -> None:
     """Save data as GeoTIFF file"""
+    if not (RASTERIO_AVAILABLE and NUMPY_AVAILABLE):
+        raise FileError("GeoTIFF functionality requires rasterio and numpy to be installed.")
     try:
         ensure_directory(str(filepath.parent))
-        
         with rasterio.open(
             filepath,
             'w',
@@ -58,12 +70,13 @@ def save_geotiff(data: np.ndarray, filepath: Path, metadata: Dict) -> None:
             transform=metadata.get('transform')
         ) as dst:
             dst.write(data, 1)
-            
     except Exception as e:
         raise FileError(f"Failed to save GeoTIFF file {filepath}: {str(e)}")
 
-def load_geotiff(filepath: Path) -> Tuple[np.ndarray, Dict]:
+def load_geotiff(filepath: Path):
     """Load data from GeoTIFF file"""
+    if not (RASTERIO_AVAILABLE and NUMPY_AVAILABLE):
+        raise FileError("GeoTIFF functionality requires rasterio and numpy to be installed.")
     try:
         with rasterio.open(filepath) as src:
             data = src.read(1)

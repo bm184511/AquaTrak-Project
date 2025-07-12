@@ -1,6 +1,4 @@
-"""
-Database utility functions for AquaTrak
-"""
+"""Database utility functions for AquaTrak"""
 
 import logging
 from typing import Dict, Any, List, Optional, Union
@@ -29,17 +27,39 @@ def get_table_stats(db: Session, table_name: str) -> Dict[str, Any]:
         row_count = count_result[0]['count'] if count_result else 0
         
         # Get table size
-        size_sql = f"""
-        SELECT pg_size_pretty(pg_total_relation_size('{table_name}')) as size,
-               pg_total_relation_size('{table_name}') as size_bytes
+        # Check if the table exists before querying pg_total_relation_size
+        table_exists_sql = f"""
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = '{table_name}'
+        );
         """
-        size_result = execute_raw_sql(db, size_sql)
-        table_size = size_result[0] if size_result else {}
+        table_exists = execute_raw_sql(db, table_exists_sql)[0]['exists']
         
-        # Get last updated
-        last_updated_sql = f"SELECT MAX(created_at) as last_updated FROM {table_name}"
-        last_updated_result = execute_raw_sql(db, last_updated_sql)
-        last_updated = last_updated_result[0]['last_updated'] if last_updated_result else None
+        table_size = {}
+        if table_exists:
+            size_sql = f"""
+            SELECT pg_size_pretty(pg_total_relation_size('{table_name}')) as size,
+                   pg_total_relation_size('{table_name}') as size_bytes
+            """
+            size_result = execute_raw_sql(db, size_sql)
+            table_size = size_result[0] if size_result else {}
+        else:
+            logger.warning(f"Table '{table_name}' does not exist, cannot retrieve size.")
+            table_size = {'size': 'N/A', 'size_bytes': 0}
+
+        # Get last updated if 'created_at' column exists
+        last_updated = None
+        columns_sql = f"""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = '{table_name}' AND column_name = 'created_at'
+        """
+        if execute_raw_sql(db, columns_sql):
+            last_updated_sql = f"SELECT MAX(created_at) as last_updated FROM {table_name}"
+            last_updated_result = execute_raw_sql(db, last_updated_sql)
+            last_updated = last_updated_result[0]['last_updated'] if last_updated_result else None
         
         return {
             'table_name': table_name,
@@ -240,6 +260,16 @@ def get_data_summary(db: Session, module_name: str) -> Dict[str, Any]:
 def cleanup_old_data(db: Session, table_name: str, days_to_keep: int = 90) -> int:
     """Clean up old data from table"""
     try:
+        # Check if 'created_at' column exists before attempting to use it
+        columns_sql = f"""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = '{table_name}' AND column_name = 'created_at'
+        """
+        if not execute_raw_sql(db, columns_sql):
+            logger.warning(f"Table '{table_name}' does not have a 'created_at' column. Skipping cleanup.")
+            return 0
+
         cutoff_date = datetime.now() - timedelta(days=days_to_keep)
         
         # Count records to be deleted
@@ -266,20 +296,28 @@ def cleanup_old_data(db: Session, table_name: str, days_to_keep: int = 90) -> in
 def get_performance_metrics(db: Session) -> Dict[str, Any]:
     """Get database performance metrics"""
     try:
-        # Get slow queries
-        slow_queries_sql = """
-        SELECT 
-            query,
-            calls,
-            total_time,
-            mean_time,
-            rows
-        FROM pg_stat_statements 
-        ORDER BY mean_time DESC 
-        LIMIT 10
-        """
-        slow_queries = execute_raw_sql(db, slow_queries_sql)
-        
+        # Check if pg_stat_statements extension is enabled
+        extension_check_sql = "SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements'"
+        pg_stat_statements_enabled = bool(execute_raw_sql(db, extension_check_sql))
+
+        slow_queries = []
+        if pg_stat_statements_enabled:
+            # Get slow queries
+            slow_queries_sql = """
+            SELECT 
+                query,
+                calls,
+                total_time,
+                mean_time,
+                rows
+            FROM pg_stat_statements 
+            ORDER BY mean_time DESC 
+            LIMIT 10
+            """
+            slow_queries = execute_raw_sql(db, slow_queries_sql)
+        else:
+            logger.warning("pg_stat_statements extension is not enabled. Slow query metrics will not be available.")
+
         # Get table access statistics
         table_stats_sql = """
         SELECT 
@@ -333,55 +371,67 @@ def validate_data_integrity(db: Session, table_name: str) -> Dict[str, Any]:
             'status': 'valid'
         }
         
-        # Check for null values in required fields
-        null_check_sql = f"""
-        SELECT column_name, COUNT(*) as null_count
-        FROM information_schema.columns c
-        LEFT JOIN {table_name} t ON 1=1
-        WHERE c.table_name = '{table_name}'
-        AND c.is_nullable = 'NO'
-        AND t.{c.column_name} IS NULL
-        GROUP BY column_name
+        # Get column names to construct dynamic queries
+        columns_info_sql = f"""
+        SELECT column_name, is_nullable
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = '{table_name}'
+        ORDER BY ordinal_position
         """
+        columns_info = execute_raw_sql(db, columns_info_sql)
+        column_names = [col['column_name'] for col in columns_info]
+        nullable_columns = {col['column_name'] for col in columns_info if col['is_nullable'] == 'YES'}
         
-        try:
-            null_results = execute_raw_sql(db, null_check_sql)
-            validation_results['checks']['null_values'] = {
-                'status': 'passed' if not null_results else 'failed',
-                'details': null_results
-            }
-        except Exception as e:
-            validation_results['checks']['null_values'] = {
-                'status': 'error',
-                'error': str(e)
-            }
+        # Check for null values in non-nullable fields
+        null_issues = []
+        for col in columns_info:
+            if col['is_nullable'] == 'NO':
+                null_check_sql = f"SELECT COUNT(*) as null_count FROM {table_name} WHERE {col['column_name']} IS NULL"
+                null_count_result = execute_raw_sql(db, null_check_sql)
+                if null_count_result and null_count_result[0]['null_count'] > 0:
+                    null_issues.append({'column_name': col['column_name'], 'null_count': null_count_result[0]['null_count']})
+        
+        validation_results['checks']['null_values'] = {
+            'status': 'passed' if not null_issues else 'failed',
+            'details': null_issues
+        }
         
         # Check for duplicate records
-        duplicate_check_sql = f"""
-        SELECT COUNT(*) as duplicate_count
-        FROM (
-            SELECT *, COUNT(*) as cnt
-            FROM {table_name}
-            GROUP BY *
-            HAVING COUNT(*) > 1
-        ) duplicates
-        """
-        
-        try:
-            duplicate_results = execute_raw_sql(db, duplicate_check_sql)
-            duplicate_count = duplicate_results[0]['duplicate_count'] if duplicate_results else 0
+        # This check might be very slow on large tables without a primary key or unique index
+        if column_names: # Only run if table has columns
+            group_by_cols = ', '.join(f'"{col}"' for col in column_names) # Quote column names to handle reserved words
+            duplicate_check_sql = f"""
+            SELECT COUNT(*) as duplicate_count
+            FROM (
+                SELECT {group_by_cols}, COUNT(*) as cnt
+                FROM {table_name}
+                GROUP BY {group_by_cols}
+                HAVING COUNT(*) > 1
+            ) duplicates
+            """
+            
+            try:
+                duplicate_results = execute_raw_sql(db, duplicate_check_sql)
+                duplicate_count = duplicate_results[0]['duplicate_count'] if duplicate_results else 0
+                validation_results['checks']['duplicates'] = {
+                    'status': 'passed' if duplicate_count == 0 else 'failed',
+                    'count': duplicate_count
+                }
+            except Exception as e:
+                logger.warning(f"Could not check for duplicates on {table_name} due to error (might lack primary key): {e}")
+                validation_results['checks']['duplicates'] = {
+                    'status': 'skipped_or_error',
+                    'error': str(e)
+                }
+        else:
             validation_results['checks']['duplicates'] = {
-                'status': 'passed' if duplicate_count == 0 else 'failed',
-                'count': duplicate_count
+                'status': 'skipped',
+                'details': 'Table has no columns defined.'
             }
-        except Exception as e:
-            validation_results['checks']['duplicates'] = {
-                'status': 'error',
-                'error': str(e)
-            }
-        
-        # Check for orphaned records
-        if 'user_id' in [col['column_name'] for col in execute_raw_sql(db, f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'")]:
+
+
+        # Check for orphaned records (assuming 'users' table and 'user_id' foreign key)
+        if 'user_id' in column_names:
             orphan_check_sql = f"""
             SELECT COUNT(*) as orphan_count
             FROM {table_name} t
@@ -401,6 +451,11 @@ def validate_data_integrity(db: Session, table_name: str) -> Dict[str, Any]:
                     'status': 'error',
                     'error': str(e)
                 }
+        else:
+            validation_results['checks']['orphaned_records'] = {
+                'status': 'skipped',
+                'details': 'Table does not have a "user_id" column for orphan check.'
+            }
         
         # Overall status
         failed_checks = [check for check in validation_results['checks'].values() if check.get('status') == 'failed']
@@ -414,4 +469,4 @@ def validate_data_integrity(db: Session, table_name: str) -> Dict[str, Any]:
             'table_name': table_name,
             'status': 'error',
             'error': str(e)
-        } 
+        }

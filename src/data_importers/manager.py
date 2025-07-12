@@ -52,8 +52,8 @@ class DataImportManager:
         return list(self.importers.keys())
     
     def import_csv_data(self, module_name: str, file_path: str, 
-                       field_mapping: Optional[Dict[str, str]] = None,
-                       **kwargs) -> Dict[str, Any]:
+                        field_mapping: Optional[Dict[str, str]] = None,
+                        **kwargs) -> Dict[str, Any]:
         """Import data from CSV file"""
         try:
             importer = CSVDataImporter(
@@ -72,7 +72,7 @@ class DataImportManager:
             raise DataImportError(f"CSV import failed: {e}")
     
     def import_api_data(self, module_name: str, api_config: Dict[str, Any],
-                       **kwargs) -> Dict[str, Any]:
+                        **kwargs) -> Dict[str, Any]:
         """Import data from API"""
         try:
             importer = APIDataImporter(
@@ -91,7 +91,7 @@ class DataImportManager:
             raise DataImportError(f"API import failed: {e}")
     
     def import_satellite_data(self, module_name: str, file_path: str,
-                            satellite_type: str = "sentinel", **kwargs) -> Dict[str, Any]:
+                              satellite_type: str = "sentinel", **kwargs) -> Dict[str, Any]:
         """Import satellite data"""
         try:
             importer = SatelliteDataImporter(
@@ -236,7 +236,7 @@ class DataImportManager:
             results['end_time'] = datetime.utcnow()
             duration = results['end_time'] - results['start_time']
             logger.info(f"Batch import completed: {results['completed_tasks']} successful, "
-                       f"{results['failed_tasks']} failed in {duration}")
+                        f"{results['failed_tasks']} failed in {duration}")
             
             return results
             
@@ -254,7 +254,7 @@ class DataImportManager:
         if import_type == 'csv':
             return self.import_csv_data(module_name, data_source, **task.get('options', {}))
         elif import_type == 'api':
-            return self.import_api_data(module_name, data.get('api_config', {}), **task.get('options', {}))
+            return self.import_api_data(module_name, task.get('api_config', {}), **task.get('options', {}))
         elif import_type == 'satellite':
             return self.import_satellite_data(module_name, data_source, **task.get('options', {}))
         elif import_type == 'json':
@@ -285,7 +285,7 @@ class DataImportManager:
             self.import_history = self.import_history[-1000:]
     
     def get_import_history(self, module_name: Optional[str] = None, 
-                          limit: int = 100) -> List[Dict[str, Any]]:
+                           limit: int = 100) -> List[Dict[str, Any]]:
         """Get import history"""
         history = self.import_history
         
@@ -337,7 +337,7 @@ class DataImportManager:
         return stats
     
     def schedule_recurring_import(self, task: Dict[str, Any], 
-                                interval_hours: int = 24) -> str:
+                                  interval_hours: int = 24) -> str:
         """Schedule a recurring import task"""
         # This would integrate with a task scheduler like Celery
         # For now, just log the schedule
@@ -397,4 +397,4 @@ class DataImportManager:
             
         except Exception as e:
             logger.error(f"Sample data creation failed: {e}")
-            raise DataImportError(f"Sample data creation failed: {e}") 
+            raise DataImportError(f"Sample data creation failed: {e}")

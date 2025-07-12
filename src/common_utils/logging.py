@@ -7,12 +7,21 @@ Logging configuration for AquaTrak
 import logging
 import logging.handlers
 import sys
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from ..config.settings import get_settings
-
-settings = get_settings()
+# Try to import settings, but don't fail if not available
+try:
+    from ..config.settings import get_settings
+    settings = get_settings()
+except ImportError:
+    # Fallback settings for when config is not available
+    settings = type('Settings', (), {
+        'LOG_LEVEL': 'INFO',
+        'LOG_FILE': 'logs/aquatrak.log'
+    })()
 
 def setup_logging(
     log_level: str = None,

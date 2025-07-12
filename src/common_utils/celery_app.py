@@ -5,12 +5,38 @@ Celery configuration for background tasks in AquaTrak
 """
 
 import os
-from celery import Celery
-from celery.schedules import crontab
 
-from ..config.settings import get_settings
+# Try to import celery, but don't fail if not available
+try:
+    from celery import Celery
+    from celery.schedules import crontab
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    # Create dummy classes for when celery is not available
+    class Celery:
+        def __init__(self, *args, **kwargs):
+            pass
+        def task(self, *args, **kwargs):
+            def decorator(func):
+                return func
+            return decorator
+        def conf(self):
+            return type('Config', (), {'update': lambda x: None})()
+    
+    class crontab:
+        def __init__(self, **kwargs):
+            pass
 
-settings = get_settings()
+# Try to import settings, but don't fail if not available
+try:
+    from ..config.settings import get_settings
+    settings = get_settings()
+except ImportError:
+    # Fallback settings for when config is not available
+    settings = type('Settings', (), {
+        'REDIS_URL': 'redis://localhost:6379/0'
+    })()
 
 # Create Celery app
 celery_app = Celery(

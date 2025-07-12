@@ -38,4 +38,8 @@ class ConfigurationError(AquaTrakException):
 
 class ProcessingError(AquaTrakException):
     """Exception raised during data processing"""
+    pass
+
+class FileError(AquaTrakException):
+    """Exception raised during file operations"""
     pass 

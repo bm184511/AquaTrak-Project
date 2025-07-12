@@ -89,6 +89,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8 black mypy
     
+    - name: Fix file encodings
+      run: |
+        echo "🔧 Running encoding fix script..."
+        python fix_encoding.py
+        echo "✅ Encoding fix completed"
+    
     - name: Run linting
       run: |
         flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -102,12 +108,49 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Run security scan
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: src/frontend/package-lock.json
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Install Node.js dependencies
+      working-directory: src/frontend
+      run: |
+        npm ci
+        npm list --depth=0
+    
+    - name: Verify node_modules exists
+      working-directory: src/frontend
+      run: |
+        ls -la node_modules/
+        echo "node_modules directory contents verified"
+    
+    - name: Run Python security scan
       uses: snyk/actions/python@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
         args: --severity-threshold=high
+    
+    - name: Run Node.js security scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high --all-projects
+      working-directory: src/frontend
 
   build:
     needs: [test, lint, security]
