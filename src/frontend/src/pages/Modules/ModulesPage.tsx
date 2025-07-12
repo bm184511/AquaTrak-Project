@@ -22,8 +22,8 @@ import {
   Pause,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
-import { modulesAPI } from '@/services/api';
-import { Module } from '@/types/api';
+import { modulesAPI } from '../../services/api';
+import { Module } from '../../types/api';
 
 const ModulesPage: React.FC = () => {
   const { data: modules = [], isLoading } = useQuery<Module[]>('modules', modulesAPI.getAll);

@@ -42,7 +42,7 @@ import {
   Business as BusinessIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { adminApi } from '@/services/api';
+import { adminAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 
 interface Organization {
@@ -103,7 +103,7 @@ const OrganizationManagement: React.FC = () => {
     refetch,
   } = useQuery(
     ['organizations', page, limit, search, typeFilter, countryFilter],
-    () => adminApi.getOrganizations({
+    () => adminAPI.getOrganizations({
       page,
       limit,
       search: search || undefined,

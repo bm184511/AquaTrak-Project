@@ -22,7 +22,7 @@ import {
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from '../../store/authStore';
 
 interface LoginFormData {
   email: string;

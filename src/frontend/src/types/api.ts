@@ -57,14 +57,14 @@ export interface Module {
   config: ModuleConfig;
 }
 
-export type ModuleCategory = 
+export type ModuleCategory =
   | 'water_quality'
   | 'flood_modeling'
+  | 'environmental_health'
   | 'groundwater'
   | 'iot_monitoring'
   | 'drought_prediction'
   | 'urban_planning'
-  | 'environmental_health'
   | 'data_center'
   | 'agricultural'
   | 'transboundary'
@@ -388,7 +388,7 @@ export interface Alert {
   status: AlertStatus;
 }
 
-export type AlertType = 
+export type AlertType =
   | 'anomaly_detected'
   | 'threshold_exceeded'
   | 'system_error'
@@ -422,7 +422,7 @@ export interface DashboardWidget {
   refresh_interval: number;
 }
 
-export type WidgetType = 
+export type WidgetType =
   | 'chart'
   | 'map'
   | 'table'
@@ -510,24 +510,3 @@ export interface DataFilter {
   severity?: string[];
   [key: string]: any;
 }
-
-// Export all types
-export type {
-  ApiResponse,
-  PaginatedResponse,
-  LoginRequest,
-  LoginResponse,
-  User,
-  Module,
-  AnalysisResult,
-  IoTWaterData,
-  IoTAnalysisResult,
-  EnvironmentalHealthData,
-  GreenSpaceData,
-  WaterNetworkData,
-  Alert,
-  Dashboard,
-  Organization,
-  ApiError,
-  DataFilter
-}; 

@@ -5,7 +5,7 @@
 # =============================================================================
 
 # Stage 1: Backend Build
-FROM python:3.11-slim as backend-builder
+FROM osgeo/gdal:python-3.11 as backend-builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -13,16 +13,12 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install essential system dependencies (excluding GDAL/GEOS/PROJ as they are in base image)
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
     libpq-dev \
-    libgdal-dev \
-    libgeos-dev \
-    libproj-dev \
-    gdal-bin \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -45,7 +41,7 @@ WORKDIR /app/frontend
 COPY src/frontend/package*.json ./
 
 # Install frontend dependencies
-RUN npm ci --only=production
+RUN npm install --only=production
 
 # Copy frontend source code
 COPY src/frontend/ ./
@@ -54,7 +50,7 @@ COPY src/frontend/ ./
 RUN npm run build
 
 # Stage 3: Production Runtime
-FROM python:3.11-slim as production
+FROM osgeo/gdal:python-3.11 as production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -62,14 +58,11 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+# Install runtime dependencies (excluding GDAL/GEOS/PROJ as they are in base image)
+RUN apt-get update && apt-get install -y --fix-missing \
     curl \
     libpq5 \
-    libgdal30 \
-    libgeos-c1v5 \
-    libproj22 \
-    gdal-bin \
+    git \
     nginx \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
@@ -115,4 +108,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Set entrypoint
-ENTRYPOINT ["/entrypoint.sh"] 
+ENTRYPOINT ["/entrypoint.sh"]

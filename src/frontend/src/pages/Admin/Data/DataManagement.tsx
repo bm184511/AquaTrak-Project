@@ -43,7 +43,7 @@ import {
   CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { adminApi } from '@/services/api';
+import { adminAPI } from '../../../services/api';
 import toast from 'react-hot-toast';
 
 interface DataSource {
@@ -82,7 +82,7 @@ const DataManagement: React.FC = () => {
     refetch: refetchSources,
   } = useQuery<{ status: string; data: DataSource[] }>(
     'dataSources',
-    () => adminApi.getDataSources(),
+    () => adminAPI.getDataSources(),
     {
       refetchInterval: 30000, // Refresh every 30 seconds
     }
@@ -96,7 +96,7 @@ const DataManagement: React.FC = () => {
     refetch: refetchUploads,
   } = useQuery(
     ['fileUploads', uploadPage, uploadLimit, uploadStatus, uploadUserId],
-    () => adminApi.getFileUploads({
+    () => adminAPI.getFileUploads({
       page: uploadPage,
       limit: uploadLimit,
       status: uploadStatus || undefined,
@@ -374,7 +374,7 @@ const DataManagement: React.FC = () => {
                     <Skeleton variant="text" width="60%" />
                   ) : (
                     <Typography variant="h4" component="div">
-                      {uploadsData?.data.uploads.filter(u => u.upload_status === 'completed').length || 0}
+                      {uploadsData?.data.uploads.filter((u: FileUpload) => u.upload_status === 'completed').length || 0}
                     </Typography>
                   )}
                 </CardContent>
@@ -394,7 +394,7 @@ const DataManagement: React.FC = () => {
                     <Skeleton variant="text" width="60%" />
                   ) : (
                     <Typography variant="h4" component="div">
-                      {uploadsData?.data.uploads.filter(u => u.upload_status === 'pending').length || 0}
+                      {uploadsData?.data.uploads.filter((u: FileUpload) => u.upload_status === 'pending').length || 0}
                     </Typography>
                   )}
                 </CardContent>
@@ -414,7 +414,7 @@ const DataManagement: React.FC = () => {
                     <Skeleton variant="text" width="60%" />
                   ) : (
                     <Typography variant="h4" component="div">
-                      {uploadsData?.data.uploads.filter(u => u.upload_status === 'failed').length || 0}
+                      {uploadsData?.data.uploads.filter((u: FileUpload) => u.upload_status === 'failed').length || 0}
                     </Typography>
                   )}
                 </CardContent>
@@ -491,7 +491,7 @@ const DataManagement: React.FC = () => {
                           </TableRow>
                         ))
                       ) : (
-                        uploadsData?.data.uploads.map((upload) => (
+                        uploadsData?.data.uploads.map((upload: FileUpload) => (
                           <TableRow key={upload.id}>
                             <TableCell>
                               <Typography variant="body2" sx={{ fontWeight: 500 }}>

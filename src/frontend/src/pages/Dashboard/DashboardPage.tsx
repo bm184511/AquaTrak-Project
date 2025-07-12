@@ -47,8 +47,8 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { modulesAPI, alertsAPI, analysisAPI } from '@/services/api';
-import { Module, Alert, AnalysisResult } from '@/types/api';
+import { modulesAPI, alertsAPI, analysisAPI } from '../../services/api';
+import { Module, Alert, AnalysisResult } from '../../types/api';
 
 const DashboardPage: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);

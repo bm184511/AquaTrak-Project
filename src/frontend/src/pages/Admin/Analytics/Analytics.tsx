@@ -30,7 +30,7 @@ import {
   Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
-import { adminApi } from '@/services/api';
+import { adminAPI } from '../../../services/api';
 
 interface UsageAnalytics {
   period: string;
@@ -60,7 +60,7 @@ const Analytics: React.FC = () => {
     error: usageError,
   } = useQuery<{ status: string; data: UsageAnalytics }>(
     ['usageAnalytics', usagePeriod],
-    () => adminApi.getUsageAnalytics({ period: usagePeriod }),
+    () => adminAPI.getUsageAnalytics({ period: usagePeriod }),
     {
       refetchInterval: 300000, // Refresh every 5 minutes
     }
@@ -73,7 +73,7 @@ const Analytics: React.FC = () => {
     error: moduleError,
   } = useQuery<{ status: string; data: ModuleAnalytics[] }>(
     ['moduleAnalytics', modulePeriod],
-    () => adminApi.getModuleAnalytics({ period: modulePeriod }),
+    () => adminAPI.getModuleAnalytics({ period: modulePeriod }),
     {
       refetchInterval: 300000, // Refresh every 5 minutes
     }

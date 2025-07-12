@@ -29,7 +29,7 @@ import {
   AccountCircle,
   Logout,
   WaterDrop,
-  Eco,
+  Waves,
   HealthAndSafety,
   Park,
   Storage,
@@ -41,7 +41,7 @@ import {
   AdminPanelSettings,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useUser, useAuthStore } from '@/store/authStore';
+import { useUser, useAuthStore } from '../../store/authStore';
 
 const drawerWidth = 280;
 
@@ -91,7 +91,7 @@ const moduleItems = [
   { text: 'Transboundary Water', icon: <Public />, path: '/modules/transboundary' },
   { text: 'Data Center Water', icon: <Cloud />, path: '/modules/data-center' },
   { text: 'Dust Storm Analysis', icon: <Terrain />, path: '/modules/dust-storm' },
-  { text: 'Urban Flood Modeling', icon: <Eco />, path: '/modules/flood-modeling' },
+  { text: 'Urban Flood Modeling', icon: <Waves />, path: '/modules/flood-modeling' },
   { text: 'Groundwater Pollution', icon: <WaterDrop />, path: '/modules/groundwater' },
   { text: 'Drinking Water Quality', icon: <HealthAndSafety />, path: '/modules/water-quality' },
   { text: 'Drought Prediction', icon: <Terrain />, path: '/modules/drought' },
@@ -185,7 +185,7 @@ const Layout: React.FC = () => {
         ))}
         
         {/* Admin menu items */}
-        {user?.roles?.includes('admin') && (
+        {user?.role === 'admin' && (
           <>
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle2" sx={{ px: 3, py: 1, color: 'text.secondary' }}>

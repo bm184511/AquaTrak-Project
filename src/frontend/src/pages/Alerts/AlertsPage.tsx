@@ -36,8 +36,8 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { format } from 'date-fns';
-import { alertsAPI } from '@/services/api';
-import { Alert } from '@/types/api';
+import { alertsAPI } from '../../services/api';
+import { Alert } from '../../types/api';
 
 const AlertsPage: React.FC = () => {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);

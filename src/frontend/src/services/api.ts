@@ -13,7 +13,7 @@ import {
   Organization,
   DataFilter,
   PaginatedResponse
-} from '@/types/api';
+} from '../types/api';
 
 // API Configuration
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';

@@ -37,7 +37,7 @@ import {
   FilterList as FilterIcon,
 } from '@mui/icons-material';
 import { useQuery } from 'react-query';
-import { adminApi } from '@/services/api';
+import { adminAPI } from '../../../services/api';
 
 interface SystemStatus {
   status: string;
@@ -100,7 +100,7 @@ const SystemMonitoring: React.FC = () => {
     refetch: refetchStatus,
   } = useQuery<{ status: string; data: SystemStatus }>(
     'systemStatus',
-    () => adminApi.getSystemStatus(),
+    () => adminAPI.getSystemStatus(),
     {
       refetchInterval: 10000, // Refresh every 10 seconds
     }
@@ -114,7 +114,7 @@ const SystemMonitoring: React.FC = () => {
     refetch: refetchPerformance,
   } = useQuery<{ status: string; data: PerformanceStats }>(
     'systemPerformance',
-    () => adminApi.getSystemPerformance(),
+    () => adminAPI.getSystemPerformance(),
     {
       refetchInterval: 30000, // Refresh every 30 seconds
     }
@@ -128,7 +128,7 @@ const SystemMonitoring: React.FC = () => {
     refetch: refetchLogs,
   } = useQuery(
     ['systemLogs', logPage, logLimit, logLevel, logUserId, logAction],
-    () => adminApi.getSystemLogs({
+    () => adminAPI.getSystemLogs({
       page: logPage,
       limit: logLimit,
       level: logLevel || undefined,
@@ -249,7 +249,7 @@ const SystemMonitoring: React.FC = () => {
                     <LinearProgress
                       variant="determinate"
                       value={systemStatus?.data.cpu_usage || 0}
-                      color={systemStatus?.data.cpu_usage > 80 ? 'error' : 'primary'}
+                      color={(systemStatus?.data.cpu_usage || 0) > 80 ? 'error' : 'primary'}
                       sx={{ height: 10, borderRadius: 5 }}
                     />
                   </>
@@ -278,7 +278,7 @@ const SystemMonitoring: React.FC = () => {
                     <LinearProgress
                       variant="determinate"
                       value={systemStatus?.data.memory_usage || 0}
-                      color={systemStatus?.data.memory_usage > 80 ? 'error' : 'primary'}
+                      color={(systemStatus?.data.memory_usage || 0) > 80 ? 'error' : 'primary'}
                       sx={{ height: 10, borderRadius: 5 }}
                     />
                     <Box sx={{ mt: 1 }}>
@@ -313,7 +313,7 @@ const SystemMonitoring: React.FC = () => {
                     <LinearProgress
                       variant="determinate"
                       value={systemStatus?.data.disk_usage || 0}
-                      color={systemStatus?.data.disk_usage > 80 ? 'error' : 'primary'}
+                      color={(systemStatus?.data.disk_usage || 0) > 80 ? 'error' : 'primary'}
                       sx={{ height: 10, borderRadius: 5 }}
                     />
                     <Box sx={{ mt: 1 }}>

@@ -1,27 +1,25 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Box } from '@mui/material';
-import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { Toaster } from 'react-hot-toast';
+import { ThemeProvider, CssBaseline, Box, createTheme } from '@mui/material';
 
-// Components
-import Layout from '@/components/Layout/Layout';
-import ProtectedRoute from '@/components/Auth/ProtectedRoute';
-import LoadingSpinner from '@/components/Common/LoadingSpinner';
+import Layout from './components/Layout/Layout';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import LoadingSpinner from './components/Common/LoadingSpinner';
 
 // Pages
-import LoginPage from '@/pages/Auth/LoginPage';
-import DashboardPage from '@/pages/Dashboard/DashboardPage';
-import ModulesPage from '@/pages/Modules/ModulesPage';
-import AnalysisPage from '@/pages/Analysis/AnalysisPage';
-import AlertsPage from '@/pages/Alerts/AlertsPage';
-import SettingsPage from '@/pages/Settings/SettingsPage';
-import AdminPage from '@/pages/Admin/AdminPage';
-import NotFoundPage from '@/pages/NotFound/NotFoundPage';
+import LoginPage from './pages/Auth/LoginPage';
+import DashboardPage from './pages/Dashboard/DashboardPage';
+import ModulesPage from './pages/Modules/ModulesPage';
+import AnalysisPage from './pages/Analysis/AnalysisPage';
+import AlertsPage from './pages/Alerts/AlertsPage';
+import SettingsPage from './pages/Settings/SettingsPage';
+import AdminPage from './pages/Admin/AdminPage';
+import NotFoundPage from './pages/NotFound/NotFoundPage';
 
 // Store
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore } from './store/authStore';
 
 // Create a theme instance
 const theme = createTheme({
