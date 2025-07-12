@@ -1,28 +1,59 @@
 # This code is proprietary to AquaTrak. Unauthorized use is strictly prohibited.
 
+# =============================================================================
+# OPTIMIZED DOCKER-COMPOSE FOR AQUATRAK PLATFORM
+# =============================================================================
+
 version: '3.8'
 
 services:
   # AquaTrak Backend API
   aquatrak-api:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      target: production
     container_name: aquatrak-api
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://aquatrak:password@postgres:5432/aquatrak
+      - DATABASE_URL=postgresql://aquatrak:${POSTGRES_PASSWORD:-password}@postgres:5432/aquatrak
       - REDIS_URL=redis://redis:6379
-      - DEBUG=false
+      - DEBUG=${DEBUG:-false}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      - aquatrak_uploads:/app/uploads:rw
+      - aquatrak_logs:/app/logs:rw
+      - aquatrak_static:/app/static:rw
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
 
   # PostgreSQL Database
   postgres:
@@ -31,27 +62,64 @@ services:
     environment:
       - POSTGRES_DB=aquatrak
       - POSTGRES_USER=aquatrak
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - postgres_data:/var/lib/postgresql/data:rw
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./scripts/complete-db-schema.sql:/docker-entrypoint-initdb.d/complete-db-schema.sql:ro
     ports:
       - "5432:5432"
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aquatrak -d aquatrak"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
 
   # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: aquatrak-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-}
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - redis_data:/data:rw
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
 
   # Nginx Reverse Proxy
   nginx:
@@ -61,49 +129,127 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-      - ./static:/usr/share/nginx/html
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+      - aquatrak_static:/usr/share/nginx/html:ro
+      - aquatrak_logs:/var/log/nginx:rw
     depends_on:
-      - aquatrak-api
+      aquatrak-api:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:noexec,nosuid,size=100m
+      - /tmp:noexec,nosuid,size=100m
 
   # Celery Worker for Background Tasks
   celery-worker:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      target: production
     container_name: aquatrak-celery-worker
-    command: celery -A src.common_utils.celery_app worker --loglevel=info
+    command: celery -A src.common_utils.celery_app worker --loglevel=info --concurrency=4 --max-tasks-per-child=1000
     environment:
-      - DATABASE_URL=postgresql://aquatrak:password@postgres:5432/aquatrak
+      - DATABASE_URL=postgresql://aquatrak:${POSTGRES_PASSWORD:-password}@postgres:5432/aquatrak
       - REDIS_URL=redis://redis:6379
+      - DEBUG=${DEBUG:-false}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      - aquatrak_uploads:/app/uploads:rw
+      - aquatrak_logs:/app/logs:rw
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "celery", "-A", "src.common_utils.celery_app", "inspect", "ping"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
 
   # Celery Beat for Scheduled Tasks
   celery-beat:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      target: production
     container_name: aquatrak-celery-beat
-    command: celery -A src.common_utils.celery_app beat --loglevel=info
+    command: celery -A src.common_utils.celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     environment:
-      - DATABASE_URL=postgresql://aquatrak:password@postgres:5432/aquatrak
+      - DATABASE_URL=postgresql://aquatrak:${POSTGRES_PASSWORD:-password}@postgres:5432/aquatrak
       - REDIS_URL=redis://redis:6379
+      - DEBUG=${DEBUG:-false}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./logs:/app/logs
+      - aquatrak_logs:/app/logs:rw
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "celery", "-A", "src.common_utils.celery_app", "inspect", "ping"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
 
   # Monitoring with Prometheus
   prometheus:
@@ -112,18 +258,36 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
+      - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus:rw
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
+      - '--storage.tsdb.retention.time=30d'
       - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.size=10GB'
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
 
   # Grafana for Visualization
   grafana:
@@ -132,23 +296,56 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
     volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafana_data:/var/lib/grafana:rw
+      - ./docker/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - aquatrak-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
   prometheus_data:
+    driver: local
   grafana_data:
+    driver: local
+  aquatrak_uploads:
+    driver: local
+  aquatrak_logs:
+    driver: local
+  aquatrak_static:
+    driver: local
 
 networks:
   aquatrak-network:
-    driver: bridge 
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16 

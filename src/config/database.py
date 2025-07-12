@@ -24,14 +24,8 @@ def get_database_url() -> str:
     if settings.database_url:
         return settings.database_url
     
-    # Construct from individual components
-    user = settings.db_user or "aquatrak"
-    password = settings.db_password or "aquatrak_password"
-    host = settings.db_host or "localhost"
-    port = settings.db_port or 5432
-    database = settings.db_name or "aquatrak"
-    
-    return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+    # Fallback to default configuration
+    return "postgresql://aquatrak:aquatrak123@localhost:5432/aquatrak_db"
 
 # Create database engine
 engine = create_engine(
@@ -40,7 +34,7 @@ engine = create_engine(
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
     pool_pre_ping=True,
-    pool_recycle=3600,
+    pool_recycle=settings.db_pool_recycle,
     echo=settings.debug
 )
 

@@ -12,8 +12,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from ..config.settings import get_settings
+from ..config.database import get_db
+from ..models.system import User as DBUser
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -62,24 +65,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
     
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
 def create_refresh_token(data: dict) -> str:
     """Create JWT refresh token"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     to_encode.update({"exp": expire, "type": "refresh"})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[Dict[str, Any]]:
     """Verify and decode JWT token"""
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         username: str = payload.get("sub")
         if username is None:
             return None
@@ -87,7 +90,10 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
     except JWTError:
         return None
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
     """Get current authenticated user"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -104,13 +110,12 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         if username is None:
             raise credentials_exception
         
-        # In practice, this would fetch from database
-        # For now, return a mock user
-        user = get_user_by_username(username)
-        if user is None:
+        # Fetch user from database
+        db_user = get_user_by_username(username, db)
+        if db_user is None:
             raise credentials_exception
         
-        return user
+        return db_user
         
     except JWTError:
         raise credentials_exception
@@ -121,34 +126,42 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-def get_user_by_username(username: str) -> Optional[User]:
-    """Get user by username (mock implementation)"""
-    # In practice, this would query the database
-    # For now, return a mock user
-    if username == "admin":
-        return User(
-            id="1",
-            username="admin",
-            email="admin@aquatrak.com",
-            full_name="Administrator",
-            roles=["admin"],
-            is_active=True,
-            country_code="IR",
-            language="en"
-        )
+def get_user_by_username(username: str, db: Session) -> Optional[User]:
+    """Get user by username from database"""
+    try:
+        db_user = db.query(DBUser).filter(DBUser.username == username).first()
+        if db_user:
+            return User(
+                id=str(db_user.id),
+                username=db_user.username,
+                email=db_user.email,
+                full_name=db_user.full_name,
+                roles=db_user.roles or [],
+                is_active=db_user.is_active,
+                country_code=db_user.country_code,
+                language=db_user.language or "en"
+            )
+    except Exception as e:
+        logger.error(f"Error fetching user {username}: {e}")
+    
     return None
 
-def authenticate_user(username: str, password: str) -> Optional[User]:
+def authenticate_user(username: str, password: str, db: Session) -> Optional[User]:
     """Authenticate user with username and password"""
-    user = get_user_by_username(username)
+    user = get_user_by_username(username, db)
     if not user:
         return None
     
-    # In practice, verify against hashed password in database
-    if username == "admin" and password == "admin123":  # Mock authentication
-        return user
+    # Get user from database for password verification
+    db_user = db.query(DBUser).filter(DBUser.username == username).first()
+    if not db_user:
+        return None
     
-    return None
+    # Verify password
+    if not verify_password(password, db_user.hashed_password):
+        return None
+    
+    return user
 
 def setup_security(app):
     """Setup security middleware and dependencies"""
@@ -187,19 +200,19 @@ def require_user(current_user: User = Depends(get_current_active_user)) -> User:
 
 def get_user_country(user: User) -> str:
     """Get user's country code"""
-    return user.country_code or settings.DEFAULT_COUNTRY
+    return user.country_code or settings.default_country
 
 def get_user_language(user: User) -> str:
     """Get user's preferred language"""
-    return user.language or settings.DEFAULT_LANGUAGE
+    return user.language or settings.default_language
 
 def is_country_allowed(country_code: str) -> bool:
     """Check if country is allowed access"""
-    return country_code in settings.SUPPORTED_COUNTRIES
+    return country_code in settings.supported_countries
 
 def is_language_supported(language_code: str) -> bool:
     """Check if language is supported"""
-    return language_code in settings.SUPPORTED_LANGUAGES
+    return language_code in settings.supported_languages
 
 def validate_country_access(user: User) -> bool:
     """Validate user's country access"""
@@ -246,10 +259,4 @@ def encrypt_sensitive_data(data: str) -> str:
     """Encrypt sensitive data"""
     # In practice, use proper encryption
     import base64
-    return base64.b64encode(data.encode()).decode()
-
-def decrypt_sensitive_data(encrypted_data: str) -> str:
-    """Decrypt sensitive data"""
-    # In practice, use proper decryption
-    import base64
-    return base64.b64decode(encrypted_data.encode()).decode() 
+    return base64.b64encode(data.encode()).decode() 

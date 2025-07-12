@@ -87,21 +87,21 @@ def create_app() -> FastAPI:
         title="AquaTrak API",
         description="AI-GIS Platform for Predictive Water Risk and Urban Resilience",
         version="1.0.0",
-        docs_url="/docs" if settings.DEBUG else None,
-        redoc_url="/redoc" if settings.DEBUG else None,
+        docs_url="/docs" if settings.debug else None,
+        redoc_url="/redoc" if settings.debug else None,
         lifespan=lifespan
     )
     
     # Security middleware
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=settings.ALLOWED_HOSTS
+        allowed_hosts=settings.allowed_hosts
     )
     
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
@@ -162,7 +162,7 @@ def create_app() -> FastAPI:
     setup_routes(app)
     
     # Serve static files in development
-    if settings.DEBUG:
+    if settings.debug:
         app.mount("/static", StaticFiles(directory="static"), name="static")
     
     return app
@@ -175,10 +175,10 @@ def main():
         # Run the application
         uvicorn.run(
             app,
-            host=settings.HOST,
-            port=settings.PORT,
-            reload=settings.DEBUG,
-            log_level="info" if not settings.DEBUG else "debug",
+            host=settings.host,
+            port=settings.port,
+            reload=settings.debug,
+            log_level="info" if not settings.debug else "debug",
             access_log=True
         )
         
