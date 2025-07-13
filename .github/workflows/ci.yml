@@ -95,6 +95,8 @@ jobs:
 
     - name: Run Snyk Security Scan
       working-directory: src/frontend
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: |
         npx snyk test --file=package.json \
           --detection-depth=5 \
