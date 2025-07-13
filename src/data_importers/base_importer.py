@@ -25,6 +25,7 @@ class BaseDataImporter(ABC):
         self.module_name = module_name
         self.data_source = data_source
         self.db: Optional[Session] = None
+        self.start_time = datetime.utcnow()  # Initialize start_time
         self.import_stats = {
             'total_records': 0,
             'imported_records': 0,
