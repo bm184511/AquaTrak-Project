@@ -19,27 +19,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    # 1. Inspect and fix encoding issues
-    - name: Run Encoding Fixer
-      run: python fix_encoding.py
-      
-    - name: Inspect Black Installation
-      run: |
-        echo "===== Black File Hexdump ====="
-        hexdump -C $(python -c "import black; print(black.__file__)") | head -n 20
-        echo "===== File Type ====="
-        file $(python -c "import black; print(black.__file__)")
-
-    # 2. Force reinstall Black with UTF-8 enforcement
-    - name: Reinstall Black (UTF-8 Safe)
-      run: |
-        pip uninstall -y black
-        pip install --no-cache-dir --force-reinstall \
-          --global-option="--compile-bytecode" \
-          --no-binary :all: \
-          black==23.12.1  # Pin version for stability
-
-    # 3. Cache optimization (should be before installing dependencies)
+    # 1. Cache optimization (should be before installing dependencies)
     - name: Cache Python dependencies
       uses: actions/cache@v3
       with:
@@ -47,9 +27,30 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: ${{ runner.os }}-pip-
 
-    # Install Python dependencies
+    # **انتقال یافته: گام نصب وابستگی‌های پایتون (اینجا قرار می‌گیرد)**
     - name: Install Python dependencies
       run: pip install -r requirements.txt
+
+    # 2. Inspect and fix encoding issues (این گام‌ها اکنون بعد از نصب black قرار می‌گیرند)
+    - name: Run Encoding Fixer
+      run: python fix_encoding.py
+      
+    - name: Inspect Black Installation
+      run: |
+        echo "===== Black File Hexdump ====="
+        # حالا black نصب شده است
+        hexdump -C $(python -c "import black; print(black.__file__)") | head -n 20
+        echo "===== File Type ====="
+        file $(python -c "import black; print(black.__file__)")
+
+    # 3. Force reinstall Black with UTF-8 enforcement (این گام ممکن است دیگر ضروری نباشد اما برای اطمینان نگه می‌داریم)
+    - name: Reinstall Black (UTF-8 Safe)
+      run: |
+        pip uninstall -y black # ابتدا black نصب شده را حذف می کند
+        pip install --no-cache-dir --force-reinstall \
+          --global-option="--compile-bytecode" \
+          --no-binary :all: \
+          black==23.12.1  # Pin version for stability
 
     # 4. Linting with Flake8 using setup.cfg configuration
     - name: Run Flake8 (UTF-8 Enforced with Config)

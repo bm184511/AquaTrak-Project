@@ -10,7 +10,7 @@ Unauthorized copying, distribution, or use is strictly prohibited.
 
 from .settings import get_settings
 from .database import get_db, get_db_context, init_db, check_db_connection
-from .countries import COUNTRIES, get_country_info
+from .countries import ALL_COUNTRIES, get_country_info, SUPPORTED_COUNTRY_CODES
 
 __all__ = [
     'get_settings',
@@ -18,6 +18,7 @@ __all__ = [
     'get_db_context',
     'init_db',
     'check_db_connection',
-    'COUNTRIES',
-    'get_country_info'
+    'ALL_COUNTRIES',
+    'get_country_info',
+    'SUPPORTED_COUNTRY_CODES'
 ] 
