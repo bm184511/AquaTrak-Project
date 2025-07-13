@@ -100,7 +100,7 @@ jobs:
       run: |
         npx snyk test --file=package.json \
           --detection-depth=5 \
-          --org=aquatrak \
+          --org=AquaTrak \
           --project-name=${{ github.repository }} \
           --sarif-file-output=snyk.sarif
           
