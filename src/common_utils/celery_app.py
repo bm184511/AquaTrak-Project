@@ -16,13 +16,12 @@ except ImportError:
     # Create dummy classes for when celery is not available
     class Celery:
         def __init__(self, *args, **kwargs):
-            pass
+            self.conf = type('Config', (), {'update': lambda self, x: None})()
+        
         def task(self, *args, **kwargs):
             def decorator(func):
                 return func
             return decorator
-        def conf(self):
-            return type('Config', (), {'update': lambda x: None})()
     
     class crontab:
         def __init__(self, **kwargs):
