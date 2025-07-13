@@ -19,6 +19,12 @@ jobs:
       with:
         fetch-depth: 0
 
+    # **گام جدید: تنظیم نسخه پایتون (اینجا اضافه شود)**
+    - name: Setup Python
+      uses: actions/setup-python@v4 # استفاده از نسخه 4 اکشن
+      with:
+        python-version: '3.11' # تغییر از پیش‌فرض یا هر نسخه دیگر به 3.11
+
     # **گام جدید: نصب GDAL Development Libraries (اینجا اضافه شود)**
     - name: Install GDAL Libraries
       run: |
