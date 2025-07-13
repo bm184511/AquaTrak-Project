@@ -19,6 +19,12 @@ jobs:
       with:
         fetch-depth: 0
 
+    # **گام جدید: نصب GDAL Development Libraries (اینجا اضافه شود)**
+    - name: Install GDAL Libraries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgdal-dev gdal-bin
+
     # 1. Cache optimization (should be before installing dependencies)
     - name: Cache Python dependencies
       uses: actions/cache@v3
